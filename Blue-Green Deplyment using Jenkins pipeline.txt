@@ -1,0 +1,156 @@
+```bash
+############################################################
+# ALL-IN-ONE REPO BOOTSTRAP SCRIPT
+# Creates Blue-Green Jenkins Git Pipeline Project
+############################################################
+
+# ---------- STEP 1: CREATE PROJECT ----------
+mkdir -p ~/bluegreen-jenkins-git
+cd ~/bluegreen-jenkins-git
+
+
+# ---------- STEP 2: CREATE APP FILE ----------
+cat <<EOF > index.html
+<h1>VERSION 1 — BLUE/GREEN FROM GIT PIPELINE</h1>
+EOF
+
+
+# ---------- STEP 3: CREATE DOCKERFILE ----------
+cat <<EOF > Dockerfile
+FROM nginx:alpine
+COPY index.html /usr/share/nginx/html/index.html
+EOF
+
+
+# ---------- STEP 4: CREATE JENKINSFILE ----------
+cat <<'EOF' > Jenkinsfile
+pipeline {
+
+    agent any
+
+    parameters {
+        choice(name: 'TARGET', choices: ['blue','green'], description: 'Deploy target')
+    }
+
+    stages {
+
+        stage('Build Image') {
+            steps {
+                sh 'docker build -t git-demo .'
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                script {
+                    if (params.TARGET == "blue") {
+                        sh '''
+                        docker rm -f app-blue || true
+                        docker run -d -p 8081:80 --name app-blue git-demo
+                        '''
+                    } else {
+                        sh '''
+                        docker rm -f app-green || true
+                        docker run -d -p 8082:80 --name app-green git-demo
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Switch Traffic') {
+            steps {
+                script {
+                    if (params.TARGET == "blue") {
+                        sh "sudo sed -i 's/8082/8081/' /etc/nginx/sites-enabled/default"
+                    } else {
+                        sh "sudo sed -i 's/8081/8082/' /etc/nginx/sites-enabled/default"
+                    }
+
+                    sh "sudo systemctl reload nginx"
+                }
+            }
+        }
+
+        stage('Verify Live Traffic') {
+            steps {
+                sh 'curl localhost'
+            }
+        }
+    }
+}
+EOF
+
+
+# ---------- STEP 5: CREATE SETUP SCRIPT ----------
+cat <<EOF > setup.sh
+#!/bin/bash
+
+apt update
+apt install -y docker.io nginx git
+
+systemctl start docker
+systemctl enable docker
+systemctl start nginx
+
+usermod -aG docker jenkins
+
+echo "jenkins ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+cat <<CONF > /etc/nginx/sites-enabled/default
+server {
+    listen 80;
+
+    location / {
+        proxy_pass http://localhost:8081;
+    }
+}
+CONF
+
+systemctl restart nginx
+EOF
+
+chmod +x setup.sh
+
+
+# ---------- STEP 6: CREATE README ----------
+cat <<EOF > README.md
+# Blue-Green Deployment Jenkins Pipeline
+
+## Overview
+This project demonstrates Blue-Green deployment automation using:
+
+- Jenkins Pipeline from Git
+- Docker containers
+- Nginx traffic switching
+
+## Ports
+Blue → 8081  
+Green → 8082  
+
+## Usage
+
+Run setup:
+
+sudo ./setup.sh
+
+Configure Jenkins:
+
+Pipeline from SCM  
+Repo URL → this repository  
+Script Path → Jenkinsfile
+
+Run builds choosing target environment.
+EOF
+
+
+# ---------- STEP 7: INIT GIT ----------
+git init
+git add .
+git commit -m "Initial commit: Blue-Green Jenkins Git pipeline"
+
+
+############################################################
+# DONE
+############################################################
+```
