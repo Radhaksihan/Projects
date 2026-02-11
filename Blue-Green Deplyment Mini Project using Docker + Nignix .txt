@@ -1,0 +1,249 @@
+# Blue-Green Deployment Mini Project
+
+## Docker + Nginx 
+
+---
+
+## 📌 Project Overview
+
+This mini-project demonstrates a Blue-Green deployment strategy using Docker containers and Nginx as a traffic router. Two identical environments run simultaneously:
+
+* **Blue** → Current production version
+* **Green** → New release version
+
+Traffic switching is controlled through Nginx configuration, enabling zero-downtime deployment and instant rollback.
+
+---
+
+## 🧱 Architecture
+
+User → Nginx Reverse Proxy → (Blue or Green Container)
+
+| Component       | Role                        |
+| --------------- | --------------------------- |
+| Docker          | Runs application containers |
+| Nginx           | Routes traffic              |
+| Blue Container  | Active version              |
+| Green Container | Candidate version           |
+
+---
+
+## 🛠 Prerequisites
+
+* Ubuntu Playground 
+* Root or sudo access
+* Internet connectivity
+
+---
+
+# 🚀 COMPLETE IMPLEMENTATION
+
+---
+
+## ✅ Step 1 — Install Docker
+
+```bash
+apt update
+apt install -y docker.io
+systemctl start docker
+systemctl enable docker
+docker run hello-world
+```
+
+---
+
+## ✅ Step 2 — Create Project Workspace
+
+```bash
+mkdir ~/bluegreen-mini
+cd ~/bluegreen-mini
+```
+
+---
+
+## ✅ Step 3 — Build BLUE Version
+
+### Create Web Page
+
+```bash
+echo "<h1>BLUE VERSION — Deployed via Docker</h1>" > index.html
+```
+
+### Create Dockerfile
+
+```bash
+cat <<EOF > Dockerfile
+FROM nginx:alpine
+COPY index.html /usr/share/nginx/html/index.html
+EOF
+```
+
+### Build Image
+
+```bash
+docker build -t blue-app .
+```
+
+### Run Container
+
+```bash
+docker run -d -p 8081:80 --name app-blue blue-app
+```
+
+### Verify
+
+```bash
+curl localhost:8081
+```
+
+Expected output:
+
+```
+BLUE VERSION — Deployed via Docker
+```
+
+---
+
+## ✅ Step 4 — Build GREEN Version
+
+### Modify App Content
+
+```bash
+echo "<h1>GREEN VERSION — New Release</h1>" > index.html
+```
+
+### Build Image
+
+```bash
+docker build -t green-app .
+```
+
+### Run Container
+
+```bash
+docker run -d -p 8082:80 --name app-green green-app
+```
+
+### Verify
+
+```bash
+curl localhost:8082
+```
+
+Expected output:
+
+```
+GREEN VERSION — New Release
+```
+
+---
+
+## ✅ Step 5 — Install & Configure Nginx
+
+### Install
+
+```bash
+apt install -y nginx
+```
+
+### Configure Routing to BLUE
+
+```bash
+cat <<EOF > /etc/nginx/sites-enabled/default
+server {
+    listen 80;
+
+    location / {
+        proxy_pass http://localhost:8081;
+    }
+}
+EOF
+```
+
+### Start Nginx
+
+```bash
+systemctl restart nginx
+```
+
+### Verify Routing
+
+```bash
+curl localhost
+```
+
+Output → BLUE version
+
+---
+
+## ✅ Step 6 — Switch Traffic to GREEN
+
+### Edit Configuration
+
+```bash
+nano /etc/nginx/sites-enabled/default
+```
+
+Change:
+
+```
+proxy_pass http://localhost:8081;
+```
+
+To:
+
+```
+proxy_pass http://localhost:8082;
+```
+
+### Reload Nginx
+
+```bash
+systemctl reload nginx
+```
+
+### Verify Switch
+
+```bash
+curl localhost
+```
+
+Output → GREEN version
+
+---
+
+## ✅ Step 7 — Rollback Simulation
+
+Revert configuration back to:
+
+```
+proxy_pass http://localhost:8081;
+```
+
+Reload:
+
+```bash
+systemctl reload nginx
+```
+
+Verify:
+
+```bash
+curl localhost
+```
+
+Output → BLUE version
+
+---
+
+# 🎯 Learning Outcomes
+
+* Container image creation
+* Parallel environment deployment
+* Reverse proxy routing
+* Zero downtime traffic switching
+* Instant rollback strategy
+* Practical understanding of Blue-Green deployments
+
+---
+
