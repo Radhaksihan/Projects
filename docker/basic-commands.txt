@@ -1,0 +1,19 @@
+docker run nginx
+docker run -d nginx
+docker run --name mynginx nginx
+docker run -p 8080:80 nginx
+
+docker ps
+docker ps -a
+
+docker stop mynginx
+docker start mynginx
+docker restart mynginx
+
+docker exec -it mynginx bash
+
+docker pull ubuntu
+docker images
+
+docker rm mynginx
+docker rmi nginx
